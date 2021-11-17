@@ -1,3 +1,35 @@
+Skip to content
+Search or jump to…
+Pull requests
+Issues
+Marketplace
+Explore
+ 
+@NeeluBegum 
+NeeluBegum
+/
+Meteor_Fungi
+Public
+1
+0
+0
+Code
+Issues
+Pull requests
+Actions
+Projects
+Wiki
+Security
+Insights
+More
+Meteor_Fungi/bin/downstream_fungi.r
+@NeeluBegum
+NeeluBegum Update downstream_fungi.r
+Latest commit a7e7e8c 5 days ago
+ History
+ 1 contributor
+67 lines (60 sloc)  2.44 KB
+   
 #!/usr/bin/Rscript
 #memory.limit(9999999999)
 require('dplyr')  
@@ -10,15 +42,23 @@ mspdownload = args[3]
 #name = args[4]
 
 ## for testing only
-##gctFile = "/proj/uppstore2019028/projects/metagenome/theo/newscripts/neworalmerged/Downstream/gct.tsv"
-#gctFile = '/proj/uppstore2019028/nobackup/personal/theo/nmdsmeteor/gct.tsv'
-#mspdownload = "/proj/uppstore2019028/projects/metagenome/dataverse_files/IGC2.1990MSPs.tsv"
-#indexedCatalog = "/crex/proj/uppstore2019028/projects/metagenome/meteor_ref/oral_catalog/database/oral_catalog_lite_annotation"
-#gctFile = "/home/theop/downstream_data/norm.csv"
-#gctFile = "/crex/proj/snic2020-6-153/nobackup/private/gutnftest/work/6b/282d8e4afa311a83cdc89655f62e52/gct.tsv"
-#mspdownload = "/proj/uppstore2019028/projects/metagenome/dataverse_files/IGC2.1990MSPs.tsv"
-#indexedCatalog = "/crex/proj/uppstore2019028/projects/metagenome/meteor_ref/hs_10_4_igc2/database/hs_10_4_igc2_lite_annotation"
-#name = 'test'
+gctFile = '/proj/snic2020-6-153/nobackup/private/fungalnftest/gct.tsv'
+mspdownload = "/proj/uppstore2019028/projects/metagenome/dataverse_fungi_files/Fungi.twins.tsv"
+indexedCatalog = "/crex/proj/uppstore2019028/projects/metagenome/meteor_ref/fungal_catalog/database/fungal_catalog_lite_annotation"
+gctFile = "/proj/snic2020-6-153/nobackup/private/fungalnftest/gct.tsv"
+mspdownload = "/proj/uppstore2019028/projects/metagenome/ddataverse_fungi_files/Fungi.twins.tsv"
+indexedCatalog = "/crex/proj/uppstore2019028/projects/metagenome/meteor_ref/fungal_catalog/database/fungal_catalog_lite_annotation"
+reference="/proj/uppstore2019028/projects/metagenome/meteor_ref/fungal_catalog/reference.txt"
+
+#attaching fungal gene annotation
+#column count
+awk '{print NF}' geneCount2.txt | sort -nu | tail -n 1
+#remove double quotes
+sed 's/"//g' geneCount.txt -> geneCount2.txt
+#adjust rowname
+sed -i '1s/^/row.name       /' geneCount2.txt
+#attach functional gene names using reference.txt
+head -n1 geneCount2.txt; awk 'FNR==NR {a[$1]; next} $1 in a' reference.txt geneCount2.txt > report_species3.txt
 
 print("gct loading")
 gctTab = read.delim(gctFile, row.names=1, sep="\t", stringsAsFactors=F, header=T)
@@ -55,35 +95,5 @@ names(genesizes) = sizeTab$gene_id
 #print('number of rows of gctdown10m')
 #print(nrow(gctdown10m))
 gctNorm10m = momr::normFreqRPKM(dat=gctdown10m, cat=genesizes)
-#write.csv(gctNorm10m, quote=F, file="norm.csv")
+write.csv(gctNorm10m, quote=F, file="norm.csv")
 print("norm finished")
-
-print("catalog info loading")
-MSP_data = read.csv(mspdownload, sep="\t", stringsAsFactors=F, header=T)
-MSP_data[MSP_data==""] <- NA
-MSP_data <- MSP_data[!(is.na(MSP_data$msp_name)),]
-print("catalog info loaded")
-
-print("mgs generation begin")
-MSP_id = split(MSP_data$gene_id, MSP_data$msp_name)
-mgsList = MSP_id
-mgsList_MG <- mgsList 
-# only the first 50 genes - enough information with them
-for(i in 1:length(mgsList_MG)){
-	mgsList_MG[[i]] <- mgsList_MG[[i]][1:50]
-}
-mgsList = mgsList_MG
-mgsGeneList = unique(do.call(c, mgsList))
-genes_id <- sizeTab$gene_id[match(mgsGeneList, sizeTab$gene_id)]
-id <- match(genes_id, rownames(gctNorm10m))
-data <- gctNorm10m[id,]
-rownames(data) <- mgsGeneList
-data[is.na(data)] <- 0
-genebag = rownames(data)
-mgs <- momr::projectOntoMGS(genebag=genebag, list.mgs=mgsList)
-length(genebag)
-mgs.dat <- momr::extractProfiles(mgs, data)
-mgs.med.vect <- momr::computeFilteredVectors(profile=mgs.dat, type="median")
-mgs.med.vect <- mgs.med.vect[rowSums(mgs.med.vect)>0,]
-write.csv(mgs.med.vect, quote=F, file="msp.csv")
-print("mgs generation done")
